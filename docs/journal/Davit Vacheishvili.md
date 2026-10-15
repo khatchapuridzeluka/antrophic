@@ -14,8 +14,8 @@ Our team wrote docs/spec.md and AGENTS.md before any code existed, starting from
 
 Week 3 · Uncertainty-Aware UX
 
-To write after the Lab 3 feature. (Where the app says "not sure" instead of guessing, what I delegated, and how I tested the low-confidence path.)
+The grade gate is the place where the app says “not sure” instead of guessing when a draft is suspicious or invalid. I delegated the decision logic and a set of low-confidence test cases to Claude, then verified each route by reading the implementation and checking the exact status and reason returned by the function. This protected the feature from silently accepting a score that was too confident or too weakly justified.
 
 Week 4 · Grounded Generation
 
-To write after Lab 4 or my HW1 feature. (Where answers come from our own documents with citations, what I delegated, and how a golden question verified it.)
+The final review gate is grounded in the rubric and evidence, not in a model’s intuition: a score only survives if it matches the rubric and the source. I delegated the first draft of the rule set and the golden checks to Claude, then verified the pass/fail cases by running the function directly and checking that suspicious text stays in review while real invalid data is rejected. The pattern is simple: evidence first, then approval.
