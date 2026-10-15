@@ -1,3 +1,5 @@
 # Team
 
-- Luka Kalandadze
+* Luka Kalandadze
+* Luka Khachapuridze
+
