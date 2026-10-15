@@ -8,7 +8,6 @@
 | [Luka Kalandzadze] | [kalandadze] | Repo keeper: repo access, branch rules, CI, tags, submits team forms | Eval keeper |
 | [Luka Khachapuridze ] | [khatchapuridzeluka] | Spec keeper: keeps docs/spec.md and AGENTS.md true and current | Repo keeper |
 | [Davit Vacheishvili] | [Vache7722] | Eval keeper: evals/, golden set, committed results, usage log summaries | Feature lead |
-| [Name Surname] | [@username] | Feature lead: Classroom fetch, test runner, src/llm.py and model calls | Spec keeper |
 
 Roles stay fixed for the semester. The person who drives the AI agent rotates every slice, down this list, and the next person in the list reviews that pull request, so everyone drives at least one slice every two weeks. On Demo Day, anyone answers anything, so backup roles are how we learn each other's parts.
 
@@ -30,6 +29,6 @@ No-show rule: after 2 missed syncs or 2 missed tasks without notice, we raise it
 
 Signed (a commit from each member on this file counts as a signature):
 - [ ] [D.Vacheishvili ]
-- [ ] [Name Surname]
+- [ ] [L.Khachapuridze ]
 - [ ] [Name Surname]
 - [ ] [Name Surname]
