@@ -1,0 +1,10 @@
+[
+  {"student_id": "s01", "name": "Test Student One", "email": "s01@example.test"},
+  {"student_id": "s02", "name": "Test Student Two", "email": "s02@example.test"},
+  {"student_id": "s03", "name": "Test Student Three", "email": "s03@example.test"},
+  {"student_id": "s04", "name": "Test Student Four", "email": "s04@example.test"},
+  {"student_id": "s05", "name": "Test Student Five", "email": "s05@example.test"},
+  {"student_id": "s06", "name": "Test Student Six", "email": "s06@example.test"},
+  {"student_id": "s07", "name": "Test Student Seven", "email": "s07@example.test"},
+  {"student_id": "s08", "name": "Test Student Eight", "email": "s08@example.test"}
+]
