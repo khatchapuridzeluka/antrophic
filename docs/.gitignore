@@ -1,0 +1,23 @@
+# Secrets: never commit
+.env
+credentials.json
+token.json
+*.pem
+*.key
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Unpacked student submissions and local runtime data
+data/work/
+logs/*.local.jsonl
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
