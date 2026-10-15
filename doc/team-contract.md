@@ -30,5 +30,5 @@ No-show rule: after 2 missed syncs or 2 missed tasks without notice, we raise it
 Signed (a commit from each member on this file counts as a signature):
 - [ ] [D.Vacheishvili ]
 - [ ] [L.Khachapuridze ]
-- [ ] [Name Surname]
+- [ ] [L.Kalandadze]
 - [ ] [Name Surname]
