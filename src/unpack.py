@@ -1,114 +1,135 @@
-"""Unpack submissions into source folders (AC2).
-
-Student files are treated as data: they are copied, never imported or run.
-Only .py files are kept (docs/decisions/0003).
-"""
-
+import json
 import shutil
 import zipfile
 from pathlib import Path, PurePosixPath
 
-from src.fetch import assignment_dir, attachments, list_submissions
-
-SOURCE_SUFFIXES = {".py"}
-SKIP_DIRS = {"__pycache__", "node_modules", ".venv", "venv", ".git"}
-MAX_ZIP_ENTRIES = 200
-MAX_ZIP_BYTES = 5 * 1024 * 1024
+_SOURCE_EXTENSIONS = {".py"}
+_SKIP_DIRS = {"__pycache__", "node_modules", ".venv", ".git"}
 
 
-class Unreadable(Exception):
-    """A submission that cannot be turned into source files."""
+def ingest(assignment_id, source, work=None):
+    """Ingest the assignment into work/<assignment>/<student_id> with only Python source files kept."""
+    if not isinstance(assignment_id, str) or not assignment_id.replace("_", "").replace("-", "").isalnum() or assignment_id in {"", ".", ".."}:
+        raise ValueError(f"unsafe assignment_id: {assignment_id!r}")
 
+    root = Path(source)
+    assignment_root = root / assignment_id
+    roster = json.loads((assignment_root / "roster.json").read_text(encoding="utf-8"))
 
-def ingest(assignment_id, source, work_root="data/work"):
-    """Copy each submission's source files to <work_root>/<assignment>/<student_id>/.
+    output_root = Path(work) if work is not None else Path("data") / "work"
+    target_dir = output_root / assignment_id
+    if target_dir.exists():
+        shutil.rmtree(target_dir)
 
-    Returns one result per enrolled student. A bad submission is marked
-    unreadable and the run continues.
-    """
-    root = assignment_dir(assignment_id, source)
     results = []
-    for record in list_submissions(assignment_id, source):
-        student_id = record["student_id"]
-        if record["state"] == "MISSING":
-            results.append(_result(student_id, "missing", "missing"))
+    for student in roster:
+        student_id = student["student_id"]
+        submission_dir = assignment_root / "submissions" / student_id
+        dest_dir = target_dir / student_id
+
+        if not submission_dir.exists():
+            results.append({"student_id": student_id, "status": "missing", "files": [], "reason": "missing"})
             continue
 
-        target = Path(work_root) / assignment_id / student_id
-        if target.exists():
-            shutil.rmtree(target)
-        target.mkdir(parents=True)
+        attachments_dir = submission_dir / "attachments"
+        if not attachments_dir.exists():
+            results.append({"student_id": student_id, "status": "unreadable", "files": [], "reason": "empty"})
+            continue
+
         try:
-            files = _ingest_one(attachments(root / "submissions" / student_id), target)
-        except Unreadable as exc:
-            shutil.rmtree(target, ignore_errors=True)
-            results.append(_result(student_id, "unreadable", str(exc)))
-        except Exception:
-            shutil.rmtree(target, ignore_errors=True)
-            results.append(_result(student_id, "unreadable", "error"))
-        else:
-            results.append(_result(student_id, "ok", None, files))
+            files = _collect_files(attachments_dir, dest_dir)
+        except ValueError as exc:
+            if dest_dir.exists():
+                shutil.rmtree(dest_dir)
+            results.append({"student_id": student_id, "status": "unreadable", "files": [], "reason": str(exc)})
+            continue
+
+        if not files:
+            if dest_dir.exists():
+                shutil.rmtree(dest_dir)
+            reason = _reason_for_empty(attachments_dir)
+            results.append({"student_id": student_id, "status": "unreadable", "files": [], "reason": reason})
+            continue
+
+        results.append({"student_id": student_id, "status": "ok", "files": files})
+
     return results
 
 
-def _ingest_one(items, target):
-    if not items:
-        raise Unreadable("empty")
-
-    for attachment in items:
-        if attachment.is_dir():
-            _copy_tree(attachment, target / attachment.name)
-        elif attachment.suffix.lower() == ".zip":
-            _extract_zip(attachment, target)
-        elif attachment.suffix.lower() in SOURCE_SUFFIXES:
-            shutil.copyfile(attachment, target / attachment.name)
-
-    files = sorted(p.relative_to(target).as_posix() for p in target.rglob("*") if p.is_file())
-    if not files:
-        raise Unreadable("no_source_files")
-    return files
+def _reason_for_empty(attachments_dir):
+    if not any(attachments_dir.iterdir()):
+        return "empty"
+    for path in attachments_dir.rglob("*"):
+        if path.is_file() and path.suffix.lower() == ".py":
+            return "no_source_files"
+        if path.suffix.lower() in {".md", ".png", ".jpg", ".jpeg"}:
+            pass
+    return "no_source_files"
 
 
-def _copy_tree(src_dir, dest_dir):
-    for path in src_dir.rglob("*"):
-        rel = path.relative_to(src_dir)
-        if any(part in SKIP_DIRS for part in rel.parts):
+def _collect_files(attachments_dir, dest_dir):
+    entries = sorted(p for p in attachments_dir.iterdir())
+    if not entries:
+        return []
+
+    if len(entries) == 1 and entries[0].is_file() and entries[0].suffix.lower() == ".zip":
+        return _extract_zip(entries[0], dest_dir)
+
+    if len(entries) == 1 and entries[0].is_file() and entries[0].suffix.lower() == ".py":
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest_file = dest_dir / entries[0].name
+        shutil.copy2(entries[0], dest_file)
+        return [entries[0].name]
+
+    source_files = _iter_source_files(attachments_dir)
+    if not source_files:
+        return []
+
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    for source_file in source_files:
+        rel = source_file.relative_to(attachments_dir)
+        target = dest_dir / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_file, target)
+
+    relative_paths = [p.relative_to(dest_dir).as_posix() for p in dest_dir.rglob("*") if p.is_file()]
+    return sorted(relative_paths)
+
+
+def _iter_source_files(root):
+    files = []
+    for path in root.rglob("*"):
+        if not path.is_file():
             continue
-        if path.is_file() and not path.is_symlink() and path.suffix.lower() in SOURCE_SUFFIXES:
-            out = dest_dir / rel
-            out.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(path, out)
+        if any(part in _SKIP_DIRS for part in path.parts):
+            continue
+        if path.suffix.lower() in _SOURCE_EXTENSIONS:
+            files.append(path)
+    return sorted(files)
 
 
-def _extract_zip(archive, target):
+def _extract_zip(zip_path, dest_dir):
     try:
-        with zipfile.ZipFile(archive) as zf:
-            entries = zf.infolist()
-            if len(entries) > MAX_ZIP_ENTRIES or sum(e.file_size for e in entries) > MAX_ZIP_BYTES:
-                raise Unreadable("too_large")
-            for entry in entries:
-                if not _safe_member(entry.filename):
-                    raise Unreadable("unsafe_archive")
-            for entry in entries:
-                rel = PurePosixPath(entry.filename)
-                if entry.is_dir() or any(part in SKIP_DIRS for part in rel.parts):
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            members = zf.infolist()
+            extracted = []
+            for info in members:
+                name = info.filename.replace("\\", "/")
+                pure = PurePosixPath(name)
+                if pure.is_absolute() or ".." in pure.parts:
+                    raise ValueError("unsafe_archive")
+                if info.is_dir():
                     continue
-                if rel.suffix.lower() not in SOURCE_SUFFIXES:
+                suffix = PurePosixPath(name).suffix.lower()
+                if suffix != ".py":
                     continue
-                out = target / Path(*rel.parts)
-                out.parent.mkdir(parents=True, exist_ok=True)
-                out.write_bytes(zf.read(entry))
+                target = dest_dir / pure
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info, "r") as src, target.open("wb") as dst:
+                    shutil.copyfileobj(src, dst)
+                extracted.append(target.relative_to(dest_dir).as_posix())
+            if not extracted:
+                return []
+            return sorted(extracted)
     except zipfile.BadZipFile:
-        raise Unreadable("corrupt_archive")
-
-
-def _safe_member(name):
-    path = PurePosixPath(name.replace("\\", "/"))
-    if path.is_absolute() or ".." in path.parts:
-        return False
-    # A drive letter such as "C:" would escape the target on Windows.
-    return not (path.parts and ":" in path.parts[0])
-
-
-def _result(student_id, status, reason, files=None):
-    return {"student_id": student_id, "status": status, "reason": reason, "files": files or []}
+        raise ValueError("corrupt_archive")

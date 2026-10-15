@@ -1,56 +1,45 @@
-"""List submissions from a local drop (AC1).
-
-A later Classroom adapter in src/classroom.py returns the same records.
-"""
-
 import json
 import re
 from pathlib import Path
 
-_SAFE_ID = re.compile(r"[A-Za-z0-9_-]+")
+_SAFE_ASSIGNMENT = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def list_submissions(assignment_id, source):
-    """Return every enrolled student with state and attachment_count.
+    """Return roster rows for an assignment, exposing only student_id/state/attachment_count."""
+    if not isinstance(assignment_id, str) or not _SAFE_ASSIGNMENT.fullmatch(assignment_id):
+        raise ValueError(f"unsafe assignment_id: {assignment_id!r}")
 
-    Reads <source>/<assignment_id>/roster.json and
-    submissions/<student_id>/submission.json. Name and email are dropped
-    here, so nothing downstream ever sees them.
-    """
-    root = assignment_dir(assignment_id, source)
-    roster = json.loads((root / "roster.json").read_text(encoding="utf-8"))
+    root = Path(source)
+    roster_path = root / assignment_id / "roster.json"
+    submissions_dir = root / assignment_id / "submissions"
 
+    roster = json.loads(roster_path.read_text(encoding="utf-8"))
     records = []
+
     for student in roster:
-        student_id = check_id(student["student_id"])
-        folder = root / "submissions" / student_id
-        meta = folder / "submission.json"
-        if not meta.is_file():
+        student_id = student["student_id"]
+        submission_dir = submissions_dir / student_id
+        if not submission_dir.exists():
             records.append({"student_id": student_id, "state": "MISSING", "attachment_count": 0})
             continue
-        state = json.loads(meta.read_text(encoding="utf-8")).get("state", "TURNED_IN")
+
+        submission_json = submission_dir / "submission.json"
+        state = "MISSING"
+        if submission_json.exists():
+            with submission_json.open("r", encoding="utf-8") as fh:
+                payload = json.load(fh)
+            state = payload.get("state", "MISSING")
+
+        attachments_dir = submission_dir / "attachments"
+        attachment_count = 0
+        if attachments_dir.exists():
+            attachment_count = sum(1 for p in attachments_dir.rglob("*") if p.is_file())
+
         records.append({
             "student_id": student_id,
             "state": state,
-            "attachment_count": len(attachments(folder)),
+            "attachment_count": attachment_count,
         })
-    return sorted(records, key=lambda r: r["student_id"])
 
-
-def attachments(folder):
-    """The files and folders a student attached, in name order."""
-    folder = Path(folder) / "attachments"
-    if not folder.is_dir():
-        return []
-    return sorted(folder.iterdir())
-
-
-def assignment_dir(assignment_id, source):
-    return Path(source) / check_id(assignment_id)
-
-
-def check_id(value):
-    """Refuse ids that could point outside their folder."""
-    if not isinstance(value, str) or not _SAFE_ID.fullmatch(value):
-        raise ValueError(f"unsafe id: {value!r}")
-    return value
+    return records
