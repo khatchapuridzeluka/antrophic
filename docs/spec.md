@@ -39,7 +39,7 @@ For one assignment already on disk: ingest each submission into a folder of sour
 9. **AC9 · Speed and cost.** Grading one submission takes under 30 seconds and under $0.02 on the chosen model, read from `logs/usage.jsonl` after a live run. Offline tests do not call a model, so they do not check this number.
 
 ## First slice (Lab 2)
-Criteria: AC4, AC2 · Done when: `pytest tests/test_grade.py tests/test_ingest.py` is green · Fixtures: one `.py` file, one folder, one zip, and one corrupt submission. The model is mocked. · Not in this slice: live Classroom or Teams, the test runner, the review UI, CSV export.
+Criteria: AC1, AC2 · Done when: `pytest tests/test_list.py tests/test_ingest.py` is green · Fixtures: a synthetic course in `tests/fixtures/course/` with one `.py` file, one folder, one zip, one corrupt zip, one empty submission, one with no source files, one unsafe zip, and one missing student. · Not in this slice: live Classroom or Teams, the test runner, the model call (AC4), the review UI, CSV export.
 
 ## Napkin math
 2 groups × 30 students × 4 assignments/month = 240 submissions/month.
