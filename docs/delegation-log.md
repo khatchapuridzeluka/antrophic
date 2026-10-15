@@ -35,4 +35,4 @@
   - Changing the default to `work` failed the new default-folder test.
 - With the code restored, all 22 passed.
 - A demo `ingest` on the committed course gives the same 8 results as the tests, and no `escape.py` was written anywhere.
-- *TODO (driver): paste your own Gate 2 run.*
+- Driver's own Gate 2 run, in PowerShell on Windows: `pytest -q tests` gave `22 passed in 0.83s`.
