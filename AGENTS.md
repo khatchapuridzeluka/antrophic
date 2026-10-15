@@ -10,7 +10,9 @@ test:     pytest -q
 - Model id comes from env GRADEMATE_MODEL (default: {todo}); key from env OPENROUTER_API_KEY
 - Every model call goes through src/llm.py, which logs tokens, cost and latency to logs/usage.jsonl
 - Google Classroom and Drive calls go through src/classroom.py only; tests use tests/fixtures/, never the real API
+- Submissions are listed by src/fetch.py and unpacked by src/unpack.py into data/work/ only (gitignored); only .py files are kept (docs/decisions/0003)
 - Student code runs only through src/runner.py (timeout 10 s, no network, temp folder)
+- Product code in src/ and tests/ never imports from hw1/ or hw2/; homework stays individual
 - Students are identified by student_id only; names and emails never reach a prompt or a log
 - Grade output must validate against schemas/grade.json
 - Times are ISO 8601, timezone Asia/Tbilisi

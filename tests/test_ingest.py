@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from src.submissions import ingest
+from src.unpack import ingest
 
 
 def _files(folder):
@@ -12,8 +12,8 @@ def _files(folder):
 @pytest.fixture
 def run(course, tmp_path):
     work = tmp_path / "work"
-    results = {r["student_id"]: r for r in ingest("hw1", course, work)}
-    return results, work / "hw1"
+    results = {r["student_id"]: r for r in ingest("a01", course, work)}
+    return results, work / "a01"
 
 
 def test_run_finishes_with_one_result_per_student(run):
@@ -75,19 +75,27 @@ def test_zip_slip_writes_nothing_outside_the_work_folder(run, tmp_path):
     assert escaped == []
 
 
+def test_default_output_is_data_work(course, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    ingest("a01", course)
+
+    assert _files(tmp_path / "data" / "work" / "a01" / "s01") == ["solution.py"]
+
+
 def test_rerun_gives_the_same_files(course, tmp_path):
     work = tmp_path / "work"
-    ingest("hw1", course, work)
-    (work / "hw1" / "s01" / "stale.py").write_text("old\n")
+    ingest("a01", course, work)
+    (work / "a01" / "s01" / "stale.py").write_text("old\n")
 
-    ingest("hw1", course, work)
+    ingest("a01", course, work)
 
-    assert _files(work / "hw1" / "s01") == ["solution.py"]
+    assert _files(work / "a01" / "s01") == ["solution.py"]
 
 
 def test_ingest_does_not_change_the_source_drop(course, tmp_path):
     before = {p: p.read_bytes() for p in course.rglob("*") if p.is_file()}
 
-    ingest("hw1", course, tmp_path / "work")
+    ingest("a01", course, tmp_path / "work")
 
     assert {p: p.read_bytes() for p in course.rglob("*") if p.is_file()} == before
